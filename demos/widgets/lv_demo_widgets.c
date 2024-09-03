@@ -218,6 +218,11 @@ void lv_demo_widgets(void)
     shop_create(t3);
 
     color_changer_create(tv);
+
+    lv_obj_t * spinner = lv_spinner_create(lv_screen_active());
+    lv_obj_set_size(spinner, 100, 100);
+    lv_obj_center(spinner);
+    lv_spinner_set_anim_params(spinner, 10000, 200);
 }
 
 void lv_demo_widgets_start_slideshow(void)

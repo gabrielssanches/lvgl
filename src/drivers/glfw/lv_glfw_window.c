@@ -80,26 +80,12 @@ lv_glfw_window_t * lv_glfw_window_create(int32_t hor_res, int32_t ver_res, bool 
 
     /* Create window with graphics context */
     lv_glfw_window_t * existing_window = lv_ll_get_head(&glfw_window_ll);
-    window->window = glfwCreateWindow(hor_res, ver_res, "LVGL Simulator", NULL,
-                                      existing_window ? existing_window->window : NULL);
-    if(window->window == NULL) {
-        LV_LOG_ERROR("glfwCreateWindow fail.");
-        lv_ll_remove(&glfw_window_ll, window);
-        lv_free(window);
-        return NULL;
-    }
-
     window->hor_res = hor_res;
     window->ver_res = ver_res;
     lv_ll_init(&window->textures, sizeof(lv_glfw_texture_t));
     window->use_indev = use_mouse_indev;
-
-    glfwSetWindowUserPointer(window->window, window);
-    lv_glfw_timer_init();
-    lv_glfw_window_config(window->window, use_mouse_indev);
-    lv_glew_init();
-    glfwMakeContextCurrent(window->window);
-    lv_opengles_init();
+    
+    //lv_glfw_timer_init();
 
     return window;
 }
@@ -193,14 +179,6 @@ static int lv_glfw_init(void)
         return 0;
     }
 
-    glfwSetErrorCallback(glfw_error_cb);
-
-    int ret = glfwInit();
-    if(ret == 0) {
-        LV_LOG_ERROR("glfwInit fail.");
-        return 1;
-    }
-
     lv_ll_init(&glfw_window_ll, sizeof(lv_glfw_window_t));
 
     glfw_inited = true;
@@ -287,7 +265,7 @@ static void window_update_handler(lv_timer_t * t)
 
     /* render each window */
     LV_LL_READ(&glfw_window_ll, window) {
-        glfwMakeContextCurrent(window->window);
+        //glfwMakeContextCurrent(window->window);
         lv_opengles_viewport(0, 0, window->hor_res, window->ver_res);
         lv_opengles_render_clear();
 
@@ -304,7 +282,7 @@ static void window_update_handler(lv_timer_t * t)
         }
 
         /* Swap front and back buffers */
-        glfwSwapBuffers(window->window);
+        //glfwSwapBuffers(window->window);
     }
 }
 
