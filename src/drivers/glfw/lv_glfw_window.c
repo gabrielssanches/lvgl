@@ -330,6 +330,13 @@ static void mouse_move_callback(GLFWwindow * window, double xpos, double ypos)
     proc_mouse(lv_window);
 }
 
+void lv_glfw_window_mouse_move(lv_glfw_window_t * lv_window, double xpos, double ypos)
+{
+    lv_window->mouse_last_point.x = (int32_t)xpos;
+    lv_window->mouse_last_point.y = (int32_t)ypos;
+    proc_mouse(lv_window);
+}
+
 static void proc_mouse(lv_glfw_window_t * window)
 {
     /* mouse activity will affect the topmost LVGL display texture */
