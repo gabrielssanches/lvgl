@@ -54,6 +54,7 @@ struct lv_glfw_texture_t {
 };
 
 void lv_glfw_window_mouse_move(lv_glfw_window_t * lv_window, double xpos, double ypos);
+void lv_glfw_window_mouse_button(lv_glfw_window_t * lv_window, int button, int action, int mods);
 
 /**********************
  * GLOBAL PROTOTYPES
