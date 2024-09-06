@@ -24,56 +24,22 @@
 #include "lv_opengles_texture.h"
 #include <stdio.h>
 
-/*********************
- *      DEFINES
- *********************/
-
-/**********************
- *      TYPEDEFS
- **********************/
-
-/**********************
- *  STATIC PROTOTYPES
- **********************/
 static void window_update_handler(lv_timer_t * t);
-static uint32_t lv_glfw_tick_count_callback(void);
-static lv_glfw_window_t * lv_glfw_get_lv_window_from_window(GLFWwindow * window);
-static void glfw_error_cb(int error, const char * description);
-static int lv_glfw_init(void);
-static int lv_glew_init(void);
-static void lv_glfw_timer_init(void);
-static void lv_glfw_window_config(GLFWwindow * window, bool use_mouse_indev);
-static void lv_glfw_window_quit(void);
-static void window_close_callback(GLFWwindow * window);
-static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods);
-static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods);
-static void mouse_move_callback(GLFWwindow * window, double xpos, double ypos);
 static void proc_mouse(lv_glfw_window_t * window);
 static void indev_read_cb(lv_indev_t * indev, lv_indev_data_t * data);
 static void _lv_glfw_keyboard_read(lv_indev_t * drv, lv_indev_data_t * data);
-static void framebuffer_size_callback(GLFWwindow * window, int width, int height);
 
-/**********************
- *  STATIC VARIABLES
- **********************/
 static bool glfw_inited;
-static bool glew_inited;
-static lv_timer_t * update_handler_timer;
 static lv_ll_t glfw_window_ll;
-
-/**********************
- *      MACROS
- **********************/
-
-/**********************
- *   GLOBAL FUNCTIONS
- **********************/
 
 lv_glfw_window_t * lv_glfw_window_create(int32_t hor_res, int32_t ver_res, bool use_mouse_indev)
 {
-    if(lv_glfw_init() != 0) {
-        return NULL;
+    if(glfw_inited) {
+        return 0;
     }
+
+    lv_ll_init(&glfw_window_ll, sizeof(lv_glfw_window_t));
+
 
     lv_glfw_window_t * window = lv_ll_ins_tail(&glfw_window_ll);
     LV_ASSERT_MALLOC(window);
@@ -87,14 +53,14 @@ lv_glfw_window_t * lv_glfw_window_create(int32_t hor_res, int32_t ver_res, bool 
     lv_ll_init(&window->textures, sizeof(lv_glfw_texture_t));
     window->use_indev = use_mouse_indev;
     
-    //lv_glfw_timer_init();
+
+    glfw_inited = true;
 
     return window;
 }
 
 void lv_glfw_window_delete(lv_glfw_window_t * window)
 {
-    glfwDestroyWindow(window->window);
     if(window->use_indev) {
         lv_glfw_texture_t * texture;
         LV_LL_READ(&window->textures, texture) {
@@ -104,10 +70,6 @@ void lv_glfw_window_delete(lv_glfw_window_t * window)
     lv_ll_clear(&window->textures);
     lv_ll_remove(&glfw_window_ll, window);
     lv_free(window);
-
-    if(lv_ll_is_empty(&glfw_window_ll)) {
-        lv_glfw_window_quit();
-    }
 }
 
 lv_glfw_texture_t * lv_glfw_window_add_texture(lv_glfw_window_t * window, unsigned int texture_id, int32_t w, int32_t h)
@@ -147,6 +109,7 @@ lv_glfw_texture_t * lv_glfw_window_add_texture(lv_glfw_window_t * window, unsign
             lv_indev_set_type(texture->lv_indev_keyboard, LV_INDEV_TYPE_KEYPAD);
             lv_indev_set_read_cb(texture->lv_indev_keyboard, _lv_glfw_keyboard_read);
             lv_indev_set_driver_data(texture->lv_indev_keyboard, texture);
+            lv_indev_set_mode(texture->lv_indev_keyboard, LV_INDEV_MODE_EVENT);
             lv_indev_set_display(texture->lv_indev_keyboard, texture_disp);
         }
     }
@@ -183,81 +146,7 @@ lv_indev_t * lv_glfw_texture_get_mouse_indev(lv_glfw_texture_t * texture)
     return texture->indev;
 }
 
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-
-static int lv_glfw_init(void)
-{
-    if(glfw_inited) {
-        return 0;
-    }
-
-    lv_ll_init(&glfw_window_ll, sizeof(lv_glfw_window_t));
-
-    glfw_inited = true;
-    return 0;
-}
-
-static int lv_glew_init(void)
-{
-    if(glew_inited) {
-        return 0;
-    }
-
-    GLenum ret = glewInit();
-    if(ret != GLEW_OK) {
-        LV_LOG_ERROR("glewInit fail: %d.", ret);
-        return ret;
-    }
-
-    LV_LOG_INFO("GL version: %s", glGetString(GL_VERSION));
-    LV_LOG_INFO("GLSL version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-    glew_inited = true;
-
-    return 0;
-}
-
-static void lv_glfw_timer_init(void)
-{
-    if(update_handler_timer == NULL) {
-        update_handler_timer = lv_timer_create(window_update_handler, LV_DEF_REFR_PERIOD, NULL);
-        lv_tick_set_cb(lv_glfw_tick_count_callback);
-    }
-}
-
-static void lv_glfw_window_config(GLFWwindow * window, bool use_mouse_indev)
-{
-    glfwMakeContextCurrent(window);
-
-    glfwSwapInterval(1);
-
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    if(use_mouse_indev) {
-        glfwSetMouseButtonCallback(window, mouse_button_callback);
-        glfwSetCursorPosCallback(window, mouse_move_callback);
-    }
-
-    glfwSetKeyCallback(window, key_callback);
-
-    glfwSetWindowCloseCallback(window, window_close_callback);
-}
-
-static void lv_glfw_window_quit(void)
-{
-    lv_timer_delete(update_handler_timer);
-    update_handler_timer = NULL;
-
-    glfwTerminate();
-    glfw_inited = false;
-
-    lv_deinit();
-
-    exit(0);
-}
-
+// USE THIS FOR RAYLIB?
 static void window_update_handler(lv_timer_t * t)
 {
     LV_UNUSED(t);
@@ -300,42 +189,6 @@ static void window_update_handler(lv_timer_t * t)
     }
 }
 
-static void glfw_error_cb(int error, const char * description)
-{
-    LV_LOG_ERROR("GLFW Error %d: %s", error, description);
-}
-
-static lv_glfw_window_t * lv_glfw_get_lv_window_from_window(GLFWwindow * window)
-{
-    return glfwGetWindowUserPointer(window);
-}
-
-static void window_close_callback(GLFWwindow * window)
-{
-    lv_glfw_window_t * lv_window = lv_glfw_get_lv_window_from_window(window);
-    lv_window->closing = 1;
-}
-
-static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods)
-{
-    LV_UNUSED(scancode);
-    LV_UNUSED(mods);
-    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        lv_glfw_window_t * lv_window = lv_glfw_get_lv_window_from_window(window);
-        lv_window->closing = 1;
-    }
-}
-
-static void mouse_button_callback(GLFWwindow * window, int button, int action, int mods)
-{
-    LV_UNUSED(mods);
-    if(button == GLFW_MOUSE_BUTTON_LEFT) {
-        lv_glfw_window_t * lv_window = lv_glfw_get_lv_window_from_window(window);
-        lv_window->mouse_last_state = action == GLFW_PRESS ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
-        proc_mouse(lv_window);
-    }
-}
-
 void lv_glfw_window_mouse_button(lv_glfw_window_t * lv_window, int button, int action, int mods)
 {
     LV_UNUSED(mods);
@@ -343,14 +196,6 @@ void lv_glfw_window_mouse_button(lv_glfw_window_t * lv_window, int button, int a
         lv_window->mouse_last_state = action == GLFW_PRESS ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
         proc_mouse(lv_window);
     }
-}
-
-static void mouse_move_callback(GLFWwindow * window, double xpos, double ypos)
-{
-    lv_glfw_window_t * lv_window = lv_glfw_get_lv_window_from_window(window);
-    lv_window->mouse_last_point.x = (int32_t)xpos;
-    lv_window->mouse_last_point.y = (int32_t)ypos;
-    proc_mouse(lv_window);
 }
 
 void lv_glfw_window_mouse_move(lv_glfw_window_t * lv_window, double xpos, double ypos)
@@ -388,19 +233,6 @@ static void _lv_glfw_keyboard_read(lv_indev_t * indev, lv_indev_data_t * data)
     lv_glfw_texture_t * texture = lv_indev_get_driver_data(indev);
     data->key = texture->indev_key;
     data->state = texture->indev_key_state;
-}
-
-static void framebuffer_size_callback(GLFWwindow * window, int width, int height)
-{
-    lv_glfw_window_t * lv_window = lv_glfw_get_lv_window_from_window(window);
-    lv_window->hor_res = width;
-    lv_window->ver_res = height;
-}
-
-static uint32_t lv_glfw_tick_count_callback(void)
-{
-    double tick = glfwGetTime() * 1000.0;
-    return (uint32_t)tick;
 }
 
 #endif /*LV_USE_OPENGLES*/
