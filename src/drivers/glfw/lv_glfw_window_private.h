@@ -49,8 +49,11 @@ struct lv_glfw_texture_t {
     lv_area_t area;
     lv_opa_t opa;
     lv_indev_t * indev;
+    lv_indev_t * lv_indev_keyboard;
     lv_point_t indev_last_point;
     lv_indev_state_t indev_last_state;
+    lv_key_t indev_key;
+    lv_indev_state_t indev_key_state;
 };
 
 void lv_glfw_window_mouse_move(lv_glfw_window_t * lv_window, double xpos, double ypos);

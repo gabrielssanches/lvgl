@@ -22,6 +22,7 @@
 
 #include "lv_opengles_driver.h"
 #include "lv_opengles_texture.h"
+#include <stdio.h>
 
 /*********************
  *      DEFINES
@@ -49,6 +50,7 @@ static void mouse_button_callback(GLFWwindow * window, int button, int action, i
 static void mouse_move_callback(GLFWwindow * window, double xpos, double ypos);
 static void proc_mouse(lv_glfw_window_t * window);
 static void indev_read_cb(lv_indev_t * indev, lv_indev_data_t * data);
+static void _lv_glfw_keyboard_read(lv_indev_t * drv, lv_indev_data_t * data);
 static void framebuffer_size_callback(GLFWwindow * window, int width, int height);
 
 /**********************
@@ -134,6 +136,18 @@ lv_glfw_texture_t * lv_glfw_window_add_texture(lv_glfw_window_t * window, unsign
             lv_indev_set_driver_data(indev, texture);
             lv_indev_set_mode(indev, LV_INDEV_MODE_EVENT);
             lv_indev_set_display(indev, texture_disp);
+
+
+            texture->lv_indev_keyboard = lv_indev_create();
+            if(texture->lv_indev_keyboard == NULL) {
+                lv_ll_remove(&window->textures, texture);
+                lv_free(texture);
+                return NULL;
+            }
+            lv_indev_set_type(texture->lv_indev_keyboard, LV_INDEV_TYPE_KEYPAD);
+            lv_indev_set_read_cb(texture->lv_indev_keyboard, _lv_glfw_keyboard_read);
+            lv_indev_set_driver_data(texture->lv_indev_keyboard, texture);
+            lv_indev_set_display(texture->lv_indev_keyboard, texture_disp);
         }
     }
 
@@ -367,6 +381,13 @@ static void indev_read_cb(lv_indev_t * indev, lv_indev_data_t * data)
     lv_glfw_texture_t * texture = lv_indev_get_driver_data(indev);
     data->point = texture->indev_last_point;
     data->state = texture->indev_last_state;
+}
+
+static void _lv_glfw_keyboard_read(lv_indev_t * indev, lv_indev_data_t * data)
+{
+    lv_glfw_texture_t * texture = lv_indev_get_driver_data(indev);
+    data->key = texture->indev_key;
+    data->state = texture->indev_key_state;
 }
 
 static void framebuffer_size_callback(GLFWwindow * window, int width, int height)
